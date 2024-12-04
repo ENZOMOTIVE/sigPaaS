@@ -1,15 +1,35 @@
 import { ethers } from 'ethers';
+import { MULTISIG_NFT_ABI } from './abi';
+import { CONTRACT_CONFIG } from './config';
 import { getProvider, getSigner } from '../web3';
-import { CONTRACT_ADDRESS, CONTRACT_ABI } from '@/lib/contracts/contract';
 
-
-
+interface NFTContract extends ethers.Contract {
+  createNFT: (
+    recipient: string,
+    metadataURI: string,
+    requiredSignatures: number,
+    useCustomValidators: boolean,
+    customValidators: string[],
+    isPFP: boolean,
+    price: ethers.BigNumberish,
+    mintType: number
+  ) => Promise<ethers.ContractTransaction>;
+  
+  signNFT: (tokenId: number) => Promise<ethers.ContractTransaction>;
+  hasRole: (role: string | Uint8Array, account: string) => Promise<boolean>;
+  addMinter: (address: string) => Promise<ethers.ContractTransaction>;
+  grantRole: (role: string | Uint8Array, account: string) => Promise<ethers.ContractTransaction>;
+}
 
 export class MultiSigNFTContract {
-  private contract: ethers.Contract;
+  private contract: NFTContract;
 
   constructor(provider: ethers.Provider) {
-    this.contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+    this.contract = new ethers.Contract(
+      CONTRACT_CONFIG.address,
+      MULTISIG_NFT_ABI,
+      provider
+    ) as NFTContract;
   }
 
   static async connect() {
@@ -28,7 +48,7 @@ export class MultiSigNFTContract {
     mintType: number
   ) {
     const signer = await getSigner();
-    const contract = this.contract.connect(signer);
+    const contract = this.contract.connect(signer) as NFTContract;
     return contract.createNFT(
       recipient,
       metadataURI,
@@ -43,27 +63,23 @@ export class MultiSigNFTContract {
 
   async signNFT(tokenId: number) {
     const signer = await getSigner();
-    const contract = this.contract.connect(signer);
+    const contract = this.contract.connect(signer) as NFTContract;
     return contract.signNFT(tokenId);
   }
 
-  async claimNFT(tokenId: number) {
-    const signer = await getSigner();
-    const contract = this.contract.connect(signer);
-    return contract.claimNFT(tokenId);
-  }
-
-  async hasRole(role: string, address: string) {
-    return this.contract.hasRole(ethers.id(role), address);
+  async hasRole(role: string | Uint8Array, address: string) {
+    return this.contract.hasRole(role, address);
   }
 
   async addMinter(address: string) {
     const signer = await getSigner();
-    const contract = this.contract.connect(signer);
+    const contract = this.contract.connect(signer) as NFTContract;
     return contract.addMinter(address);
   }
 
-  async getNFTData(tokenId: number) {
-    return this.contract.nftData(tokenId);
+  async grantRole(role: string | Uint8Array, address: string) {
+    const signer = await getSigner();
+    const contract = this.contract.connect(signer) as NFTContract;
+    return contract.grantRole(role, address);
   }
 }
